@@ -1,0 +1,214 @@
+<!DOCTYPE html> 
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habla Mano</title>
+    <link href="https://fonts.googleapis.com/css?family=Baloo+Chettan+2&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: 'Baloo Chettan 2', cursive;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            background-color: #4caf50;
+            color: white;
+            margin: 0;
+            padding: 1rem;
+            font-size: 2.5rem;
+        }
+
+        .main-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+
+        .top-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .video-box img {
+            width: 320px;
+            height: auto;
+            border-radius: 10px;
+            border: 3px solid #4caf50;
+        }
+
+        .text-area, .selection-area {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            font-size: 1.2rem;
+            background: #e0f7fa;
+            padding: 0.7rem;
+            border-radius: 5px;
+            min-height: 2rem;
+        }
+
+        button {
+            margin: 0.3rem;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #4caf50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        ul li {
+            background: #f0f0f0;
+            margin: 0.2rem 0;
+            padding: 0.5rem;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+
+        ul li:hover {
+            background-color: #c8e6c9;
+        }
+    </style>
+</head>
+<body>
+<h1>Habla Mano</h1>
+<div class="main-container">
+    <div class="top-section">
+        <img src="{{ url_for('static', filename='mano.jpg') }}" alt="ASL Chart" width="250">
+        <div class="video-box">
+            <img src="{{ url_for('video_feed') }}">
+        </div>
+    </div>
+
+    <div class="text-area">
+        <div class="section-title">Escribiendo texto:</div>
+        <p id="texto-escrito">(esperando letra...)</p>
+        <button onclick="borrarUltimaLetra()">Borrar letra</button>
+        <button onclick="borrarTextoCompleto()">Limpiar</button>
+    </div>
+
+    <div class="text-area">
+        <div class="section-title">Sugerencias:</div>
+        <ul id="sugerencias-lista"></ul>
+    </div>
+
+    <div class="selection-area">
+        <div class="section-title">Texto seleccionado</div>
+        <p id="palabra-final">(ninguna)</p>
+        <button onclick="borrarUltimaSeleccionada()">Borrar última palabra</button>
+        <button onclick="borrarSeleccionadas()">Borrar palabras</button>
+        <button onclick="limpiarTodo()">Limpiar todo</button>
+    </div>
+</div>
+<script>
+    document.body.onkeyup = function(e){
+        if(e.keyCode == 13){
+            axios.get('/trigger')
+                .then(res => console.log(res.data))
+                .catch(err => console.log(err));
+        }
+    }
+
+    function actualizarTexto() {
+        axios.get('/texto_actual')
+            .then(res => {
+                document.getElementById("texto-escrito").textContent = res.data || "(esperando letra...)";
+            });
+    }
+
+    function actualizarSeleccionadas() {
+        axios.get('/palabra_seleccionada')
+            .then(res => {
+                document.getElementById("palabra-final").textContent = res.data || "(ninguna)";
+            });
+    }
+
+    setInterval(actualizarTexto, 800);
+    setInterval(actualizarSeleccionadas, 2000);
+
+    setInterval(() => {
+        axios.get('/sugerencias')
+        .then(res => {
+            const lista = document.getElementById("sugerencias-lista");
+            lista.innerHTML = "";
+            res.data.forEach(palabra => {
+                const li = document.createElement("li");
+                li.textContent = palabra;
+                li.style.cursor = "pointer";
+                li.onclick = () => {
+                    axios.get('/seleccionar?palabra=' + palabra)
+                    .then(() => {
+                        document.getElementById("texto-escrito").textContent = "(esperando letra...)";
+                        actualizarSeleccionadas();
+                    });
+                };
+                lista.appendChild(li);
+            });
+        });
+    }, 1000);
+
+    function limpiarTodo() {
+        axios.get('/limpiar')
+            .then(() => {
+                document.getElementById("texto-escrito").textContent = "(esperando letra...)";
+                document.getElementById("sugerencias-lista").innerHTML = "";
+                document.getElementById("palabra-final").textContent = "(ninguna)";
+            });
+    }
+
+    function borrarUltimaLetra() {
+        axios.get('/borrar_ultima')
+            .then(() => actualizarTexto());
+    }
+
+    function borrarTextoCompleto() {
+        axios.get('/borrar_texto_completo')
+            .then(() => {
+                document.getElementById("texto-escrito").textContent = "(esperando letra...)";
+            });
+    }
+
+    function borrarSeleccionadas() {
+        axios.get('/borrar_seleccionadas')
+            .then(() => {
+                document.getElementById("palabra-final").textContent = "(ninguna)";
+            });
+    }
+
+    function borrarUltimaSeleccionada() {
+        axios.get('/borrar_ultima_seleccionada')
+            .then(() => actualizarSeleccionadas());
+    }
+</script>
+</body>
+</html>
