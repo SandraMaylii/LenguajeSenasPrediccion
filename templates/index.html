@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habla Mano</title>
+    <title>Seña y Aprende</title>
     <link href="https://fonts.googleapis.com/css?family=Baloo+Chettan+2&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <style>
@@ -14,7 +14,6 @@
             margin: 0;
             padding: 0;
         }
-
         h1 {
             text-align: center;
             background-color: #4caf50;
@@ -23,7 +22,6 @@
             padding: 1rem;
             font-size: 2.5rem;
         }
-
         .main-container {
             max-width: 900px;
             margin: 2rem auto;
@@ -32,7 +30,6 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 10px;
         }
-
         .top-section {
             display: flex;
             justify-content: space-between;
@@ -40,24 +37,20 @@
             flex-wrap: wrap;
             margin-bottom: 2rem;
         }
-
         .video-box img {
             width: 320px;
             height: auto;
             border-radius: 10px;
             border: 3px solid #4caf50;
         }
-
         .text-area, .selection-area {
             margin-bottom: 2rem;
         }
-
         .section-title {
             font-size: 1.3rem;
             font-weight: bold;
             margin-bottom: 0.5rem;
         }
-
         p {
             font-size: 1.2rem;
             background: #e0f7fa;
@@ -65,7 +58,6 @@
             border-radius: 5px;
             min-height: 2rem;
         }
-
         button {
             margin: 0.3rem;
             padding: 0.5rem 1rem;
@@ -77,16 +69,13 @@
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
         }
-
         button:hover {
             background-color: #45a049;
         }
-
         ul {
             list-style-type: none;
             padding: 0;
         }
-
         ul li {
             background: #f0f0f0;
             margin: 0.2rem 0;
@@ -94,14 +83,13 @@
             border-radius: 5px;
             transition: background-color 0.2s;
         }
-
         ul li:hover {
             background-color: #c8e6c9;
         }
     </style>
 </head>
 <body>
-<h1>Habla Mano</h1>
+<h1>Seña y Aprende</h1>
 <div class="main-container">
     <div class="top-section">
         <img src="{{ url_for('static', filename='mano.jpg') }}" alt="ASL Chart" width="250">
@@ -128,9 +116,14 @@
         <button onclick="borrarUltimaSeleccionada()">Borrar última palabra</button>
         <button onclick="borrarSeleccionadas()">Borrar palabras</button>
         <button onclick="limpiarTodo()">Limpiar todo</button>
+        <button onclick="leerTextoSeleccionado()">Leer todo</button>
     </div>
 </div>
+
 <script>
+    let ultimoTexto = "";
+    let ultimaPalabraSeleccionada = "";
+
     document.body.onkeyup = function(e){
         if(e.keyCode == 13){
             axios.get('/trigger')
@@ -139,18 +132,49 @@
         }
     }
 
+    function hablar(texto) {
+        const synth = window.speechSynthesis;
+        const utter = new SpeechSynthesisUtterance(texto.toUpperCase());
+        utter.lang = "es-ES";
+        utter.rate = 0.9;
+        synth.speak(utter);
+    }
+
     function actualizarTexto() {
         axios.get('/texto_actual')
             .then(res => {
-                document.getElementById("texto-escrito").textContent = res.data || "(esperando letra...)";
+                const texto = res.data || "";
+                const textoElement = document.getElementById("texto-escrito");
+                textoElement.textContent = texto || "(esperando letra...)";
+
+                if (texto.length > ultimoTexto.length) {
+                    const nuevaLetra = texto.slice(-1);
+                    hablar(nuevaLetra);
+                }
+
+                ultimoTexto = texto;
             });
     }
 
     function actualizarSeleccionadas() {
         axios.get('/palabra_seleccionada')
             .then(res => {
-                document.getElementById("palabra-final").textContent = res.data || "(ninguna)";
+                const texto = res.data || "";
+                const finalElement = document.getElementById("palabra-final");
+                finalElement.textContent = texto || "(ninguna)";
+
+                if (texto.trim() !== "" && texto !== ultimaPalabraSeleccionada) {
+                    hablar(texto.trim());
+                    ultimaPalabraSeleccionada = texto;
+                }
             });
+    }
+
+    function leerTextoSeleccionado() {
+        const texto = document.getElementById("palabra-final").textContent;
+        if (texto && texto.trim() !== "(ninguna)") {
+            hablar(texto.trim());
+        }
     }
 
     setInterval(actualizarTexto, 800);
@@ -183,6 +207,8 @@
                 document.getElementById("texto-escrito").textContent = "(esperando letra...)";
                 document.getElementById("sugerencias-lista").innerHTML = "";
                 document.getElementById("palabra-final").textContent = "(ninguna)";
+                ultimoTexto = "";
+                ultimaPalabraSeleccionada = "";
             });
     }
 
@@ -195,6 +221,7 @@
         axios.get('/borrar_texto_completo')
             .then(() => {
                 document.getElementById("texto-escrito").textContent = "(esperando letra...)";
+                ultimoTexto = "";
             });
     }
 
@@ -202,6 +229,7 @@
         axios.get('/borrar_seleccionadas')
             .then(() => {
                 document.getElementById("palabra-final").textContent = "(ninguna)";
+                ultimaPalabraSeleccionada = "";
             });
     }
 

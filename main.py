@@ -17,6 +17,9 @@ signs = {'0': 'A', '1': 'B', '2': 'C', '3': 'D', '4': 'E', '5': 'F', '6': 'G', '
 
 while True:
     ret, frame = cap.read()
+    frame = cv2.flip(frame, 1)  # ← Esta línea es necesaria para invertir la imagen y eliminar efecto espejo
+    
+
 
     # Lugar de la imagen donde se toma la muestra
     img = frame[20:250, 20:250]

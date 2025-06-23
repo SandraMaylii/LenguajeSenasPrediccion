@@ -42,6 +42,8 @@ def detect_gesture(frameCount):
     while True:
         frame = vc.read()
         frame = cv2.resize(frame, (700, 480))
+        frame = cv2.flip(frame, 1)  # ← CORRIGE efecto espejo horizontal
+
         img = frame[20:250, 20:250]
 
         res = cv2.resize(img, (28, 28), interpolation=cv2.INTER_CUBIC)
