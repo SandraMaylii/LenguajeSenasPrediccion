@@ -9,3 +9,4 @@ numpy==1.23.5
 markupsafe==2.1.3
 autocomplete==0.0.104
 requests==2.31.0
+gunicorn
