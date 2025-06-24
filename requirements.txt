@@ -2,7 +2,7 @@ Flask==2.0.3
 itsdangerous==2.0.1
 jinja2==3.0.3
 werkzeug==2.0.3
-torch==2.0.1
+torch
 -f https://download.pytorch.org/whl/cpu/torch_stable.html
 opencv-python==4.5.5.62
 imutils==0.5.4
