@@ -1,11 +1,12 @@
 from imutils.video import VideoStream
 from flask import Response, request, Flask, render_template, jsonify
 import threading
-import argparse
 import time
 import cv2
 import numpy as np
 import torch
+import os
+import sys
 from model import Net
 from sugeridor_fasttext import sugerir_palabra
 
@@ -42,10 +43,9 @@ def detect_gesture(frameCount):
     while True:
         frame = vc.read()
         frame = cv2.resize(frame, (700, 480))
-        frame = cv2.flip(frame, 1)  # ← CORRIGE efecto espejo horizontal
+        frame = cv2.flip(frame, 1)
 
         img = frame[20:250, 20:250]
-
         res = cv2.resize(img, (28, 28), interpolation=cv2.INTER_CUBIC)
         res = cv2.cvtColor(res, cv2.COLOR_BGR2GRAY)
         res1 = np.reshape(res, (1, 1, 28, 28)) / 255
@@ -62,13 +62,11 @@ def detect_gesture(frameCount):
                 buffer_letras += letra
                 ultima_letra = letra
                 ultimo_tiempo_letra = time.time()
-
                 sugerencias = sugerir_palabra(buffer_letras, topn=8)
                 palabras_sugeridas.clear()
                 palabras_sugeridas.extend(sugerencias)
 
         detected = 'No se detecta nada' if float(probs[0, 0]) < 0.4 else signs[str(int(pred))] + ': ' + '{:.2f}'.format(float(probs[0, 0])) + '%'
-
         font = cv2.FONT_HERSHEY_SIMPLEX
         frame = cv2.putText(frame, detected, (60, 285), font, 1, (255, 0, 0), 2, cv2.LINE_AA)
         frame = cv2.rectangle(frame, (20, 20), (250, 250), (0, 255, 0), 3)
@@ -152,7 +150,6 @@ def borrar_ultima_seleccionada():
     palabra_elegida = ' '.join(palabras) + (" " if palabras else "")
     return Response("ok")
 
-
 @app.route("/borrar_seleccionadas")
 def borrar_seleccionadas():
     global palabra_elegida
@@ -179,16 +176,27 @@ def estado():
 # === MAIN ===
 
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--ip", type=str, required=True, help="IP address of the device")
-    ap.add_argument("-o", "--port", type=int, required=True, help="Port number of the server (1024 to 65535)")
-    ap.add_argument("-f", "--frame-count", type=int, default=32, help="# of frames used to construct the background model")
-    args = vars(ap.parse_args())
+    if len(sys.argv) > 1:
+        import argparse
+        ap = argparse.ArgumentParser()
+        ap.add_argument("-i", "--ip", type=str, required=True, help="IP address of the device")
+        ap.add_argument("-o", "--port", type=int, required=True, help="Port number of the server")
+        ap.add_argument("-f", "--frame-count", type=int, default=32, help="# of frames")
+        args = vars(ap.parse_args())
 
-    t = threading.Thread(target=detect_gesture, args=(args["frame_count"],))
-    t.daemon = True
-    t.start()
+        t = threading.Thread(target=detect_gesture, args=(args["frame_count"],))
+        t.daemon = True
+        t.start()
 
-    app.run(host=args["ip"], port=args["port"], debug=True, threaded=True, use_reloader=False)
+        app.run(host=args["ip"], port=args["port"], debug=True, threaded=True, use_reloader=False)
+    else:
+        # Producción (Render, Railway)
+        frame_count = 32
+        t = threading.Thread(target=detect_gesture, args=(frame_count,))
+        t.daemon = True
+        t.start()
+
+        port = int(os.environ.get("PORT", 5000))
+        app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
 
 vc.stop()
